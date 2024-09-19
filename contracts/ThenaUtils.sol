@@ -12,7 +12,7 @@ contract ThenaUtils is MasterUtils {
         _disableInitializers();
     }
 
-    function claimRewards(address[] calldata gauges) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    function claimRewards(address[] calldata gauges) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IThenaVoter(voter).claimRewards(gauges);
         emit RewardsClaimed(gauges);
     }

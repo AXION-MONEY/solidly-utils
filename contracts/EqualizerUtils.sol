@@ -15,7 +15,7 @@ contract EqualizerUtils is MasterUtils {
     function claimRewards(
         address[] calldata gauges,
         address[][] calldata tokens
-    ) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IEqualizerVoter(voter).claimRewards(gauges, tokens);
         emit RewardsClaimed(gauges, tokens);
     }

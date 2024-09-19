@@ -15,7 +15,7 @@ contract RamsesUtils is MasterUtils {
     function claimRewards(
         address[] calldata gauges,
         address[][] calldata tokens
-    ) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IRamsesVoter(voter).claimRewards(gauges, tokens);
         emit RewardsClaimed(gauges, tokens);
     }

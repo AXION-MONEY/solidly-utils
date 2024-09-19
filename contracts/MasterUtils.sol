@@ -21,13 +21,9 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     address public msig;
     uint256 public maxtime;
 
-    bytes32 public constant VOTER_ROLE = keccak256("VOTER_ROLE");
-    bytes32 public constant CLAIMER_ROLE = keccak256("CLAIMER_ROLE");
-    bytes32 public constant BRIBER_ROLE = keccak256("BRIBER_ROLE");
-    bytes32 public constant WITHDRAW_ERC20_ROLE = keccak256("WITHDRAW_ERC20_ROLE");
-    bytes32 public constant WITHDRAW_ERC721_ROLE = keccak256("WITHDRAW_ERC721_ROLE");
-    bytes32 public constant SWAPPER_ROLE = keccak256("SWAPPER_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant SETTER_ROLE = keccak256("SETTER_ROLE");
+    bytes32 public constant WITHDRAWER_ROLE = keccak256("WITHDRAWER_ROLE");
 
     event Voted(uint256 indexed tokenId, address[] poolVote, uint256[] weights);
     event Poked(uint256 indexed tokenId);
@@ -44,6 +40,12 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     event BribeTimesPerWeekSet(uint256 oldTimes, uint256 newTimes);
     event BribeAmountLimitSet(address bribe, uint256 amount);
 
+    error ZeroAddress();
+    error CantIncreaseUnlockTime();
+    error ArrayLengthsMismatch();
+    error BribeTimesPerWeekLimitExceeded();
+    error BribeAmountLimitExceeded(uint256 bribeAmount, uint256 limitAmount);
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -56,10 +58,8 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         address msig_,
         uint256 maxtime_
     ) public initializer {
-        require(
-            voter_ != address(0) && admin != address(0) && operator != address(0) && msig_ != address(0),
-            "MasterUtils: zero address detected"
-        );
+        if (voter_ == address(0) || admin == address(0) || operator == address(0) || msig_ == address(0))
+            revert ZeroAddress();
 
         __AccessControlEnumerable_init();
         __ReentrancyGuard_init();
@@ -71,13 +71,9 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         activePeriod = (block.timestamp / 1 weeks) * 1 weeks;
 
         _setupRole(DEFAULT_ADMIN_ROLE, admin);
-        _setupRole(VOTER_ROLE, operator);
-        _setupRole(CLAIMER_ROLE, operator);
-        _setupRole(BRIBER_ROLE, operator);
-        _setupRole(SWAPPER_ROLE, operator);
-        _setupRole(WITHDRAW_ERC20_ROLE, admin);
-        _setupRole(WITHDRAW_ERC721_ROLE, admin);
+        _setupRole(OPERATOR_ROLE, operator);
         _setupRole(SETTER_ROLE, admin);
+        _setupRole(WITHDRAWER_ROLE, admin);
     }
 
     function checkIncreaseUnlockTime(uint256 tokenId, uint256 lockDuration) public view virtual returns (bool) {
@@ -90,8 +86,8 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         Ive(ve).increase_unlock_time(tokenId, lockDuration);
     }
 
-    function increaseUnlockTime(uint256 tokenId, uint256 lockDuration) external nonReentrant onlyRole(VOTER_ROLE) {
-        require(checkIncreaseUnlockTime(tokenId, lockDuration), "MasterUtils: Can only increase lock duration");
+    function increaseUnlockTime(uint256 tokenId, uint256 lockDuration) external nonReentrant onlyRole(OPERATOR_ROLE) {
+        if (!checkIncreaseUnlockTime(tokenId, lockDuration)) revert CantIncreaseUnlockTime();
         _increaseUnlockTime(tokenId, lockDuration);
     }
 
@@ -99,13 +95,13 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         uint256 tokenId,
         address[] calldata poolVote,
         uint256[] calldata weights
-    ) external nonReentrant onlyRole(VOTER_ROLE) {
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
         if (checkIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
         IMasterVoter(voter).vote(tokenId, poolVote, weights);
         emit Voted(tokenId, poolVote, weights);
     }
 
-    function poke(uint256 tokenId) external nonReentrant onlyRole(VOTER_ROLE) {
+    function poke(uint256 tokenId) external nonReentrant onlyRole(OPERATOR_ROLE) {
         if (checkIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
         IMasterVoter(voter).poke(tokenId);
         emit Poked(tokenId);
@@ -115,7 +111,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         address[] calldata bribes,
         address[][] calldata tokens,
         uint256 tokenId
-    ) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IMasterVoter(voter).claimBribes(bribes, tokens, tokenId);
         emit BribesClaimed(tokenId, bribes, tokens);
     }
@@ -124,7 +120,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         address[] calldata fees,
         address[][] calldata tokens,
         uint256 tokenId
-    ) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IMasterVoter(voter).claimFees(fees, tokens, tokenId);
         emit FeesClaimed(tokenId, fees, tokens);
     }
@@ -133,11 +129,8 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         address[] calldata bribes,
         address[] calldata rewards,
         uint256[] calldata amounts
-    ) external nonReentrant onlyRole(BRIBER_ROLE) {
-        require(
-            bribes.length == rewards.length && bribes.length == amounts.length,
-            "MasterUtils: Array lengths mismatch"
-        );
+    ) external nonReentrant onlyRole(OPERATOR_ROLE) {
+        if (bribes.length != rewards.length || bribes.length != amounts.length) revert ArrayLengthsMismatch();
 
         uint256 currentPeriod = (block.timestamp / 1 weeks) * 1 weeks;
 
@@ -146,13 +139,11 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
             bribeTimes[activePeriod] = 0;
         }
 
-        require(
-            bribeTimes[activePeriod] + bribes.length <= bribeTimesPerWeek,
-            "MasterUtils: Exceeds bribe times per week limit"
-        );
+        if (bribeTimes[activePeriod] + bribes.length > bribeTimesPerWeek) revert BribeTimesPerWeekLimitExceeded();
 
         for (uint i = 0; i < bribes.length; i++) {
-            require(amounts[i] <= bribeAmountLimit[bribes[i]], "MasterUtils: Bribe amount exceeds limit");
+            if (amounts[i] > bribeAmountLimit[bribes[i]])
+                revert BribeAmountLimitExceeded({bribeAmount: amounts[i], limitAmount: bribeAmountLimit[bribes[i]]});
             IERC20(rewards[i]).approve(bribes[i], amounts[i]);
             IBribe(bribes[i]).notifyRewardAmount(rewards[i], amounts[i]);
         }
@@ -163,7 +154,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     }
 
     function setVoter(address voter_) external onlyRole(SETTER_ROLE) {
-        require(voter_ != address(0), "MasterUtils: zero address detected");
+        if (voter_ == address(0)) revert ZeroAddress();
 
         address ve_ = getVoterVe(voter_);
         emit VoterSet(voter, voter_);
@@ -173,7 +164,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     }
 
     function setMsig(address msig_) external onlyRole(SETTER_ROLE) {
-        require(msig_ != address(0), "MasterUtils: zero address detected");
+        if (msig_ == address(0)) revert ZeroAddress();
 
         emit MsigSet(msig, msig_);
         msig = msig_;
@@ -194,32 +185,32 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         emit BribeAmountLimitSet(bribe, amount);
     }
 
-    function msigWithdrawERC20(address token, uint256 amount) external onlyRole(WITHDRAW_ERC20_ROLE) {
-        require(token != address(0), "MasterUtils: Invalid token address");
+    function msigWithdrawERC20(address token, uint256 amount) external onlyRole(WITHDRAWER_ROLE) {
+        if (token == address(0)) revert ZeroAddress();
 
         IERC20(token).safeTransfer(msig, amount);
         emit ERC20Withdrawn(token, msig, amount);
     }
 
-    function msigWithdrawERC721(address token, uint256 tokenId) external onlyRole(WITHDRAW_ERC721_ROLE) {
-        require(token != address(0), "MasterUtils: Invalid token address");
+    function msigWithdrawERC721(address token, uint256 tokenId) external onlyRole(WITHDRAWER_ROLE) {
+        if (token == address(0)) revert ZeroAddress();
 
         IERC721(token).safeTransferFrom(address(this), msig, tokenId);
         emit ERC721Withdrawn(token, msig, tokenId);
     }
 
-    function swapperWithdraw(address token, uint256 amount) external onlyRole(SWAPPER_ROLE) {
-        require(token != address(0), "MasterUtils: Invalid token address");
+    function swapperWithdraw(address token, uint256 amount) external onlyRole(OPERATOR_ROLE) {
+        if (token == address(0)) revert ZeroAddress();
 
         IERC20(token).safeTransfer(msg.sender, amount);
         emit SwapperWithdrawn(token, msg.sender, amount);
     }
 
-    function increaseAmount(uint256 tokenId, uint256 value) external virtual nonReentrant onlyRole(VOTER_ROLE) {
+    function increaseAmount(uint256 tokenId, uint256 value) external virtual nonReentrant onlyRole(OPERATOR_ROLE) {
         Ive(ve).increase_amount(tokenId, value);
     }
 
-    function merge(uint256 from, uint256 to) external nonReentrant onlyRole(VOTER_ROLE) {
+    function merge(uint256 from, uint256 to) external nonReentrant onlyRole(OPERATOR_ROLE) {
         Ive(ve).merge(from, to);
     }
 

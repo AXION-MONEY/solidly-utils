@@ -13,7 +13,7 @@ contract AerodromeUtils is MasterUtils {
         _disableInitializers();
     }
 
-    function claimRewards(address[] calldata gauges) external nonReentrant onlyRole(CLAIMER_ROLE) {
+    function claimRewards(address[] calldata gauges) external nonReentrant onlyRole(OPERATOR_ROLE) {
         IAerodromeVoter(voter).claimRewards(gauges);
         emit RewardsClaimed(gauges);
     }
@@ -28,7 +28,7 @@ contract AerodromeUtils is MasterUtils {
         IveAERO(ve).increaseUnlockTime(tokenId, lockDuration);
     }
 
-    function increaseAmount(uint256 tokenId, uint256 value) external override nonReentrant onlyRole(VOTER_ROLE) {
+    function increaseAmount(uint256 tokenId, uint256 value) external override nonReentrant onlyRole(OPERATOR_ROLE) {
         IveAERO(ve).increaseAmount(tokenId, value);
     }
 
