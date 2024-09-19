@@ -24,7 +24,7 @@ The veUtils system involves both a Master contract and Dex-specific implementati
   **Parameters**:
   - `voter_`: Address of the IMasterVoter contract.
   - `admin`: Address that holds the `DEFAULT_ADMIN_ROLE`.
-  - `operator`: Address assigned the `VOTER_ROLE`, `CLAIMER_ROLE`, etc.
+  - `operator`: Address assigned the `OPERATOR_ROLE`.
   - `msig_`: Multisig wallet address for withdrawals.
   - `maxtime_`: Maximum lock time for voting escrow tokens.
 
@@ -54,10 +54,8 @@ The veUtils system involves both a Master contract and Dex-specific implementati
   - `setBribeAmountLimit`: Set the bribe amount limit for a pair.
 
 ### Roles
-- **VOTER_ROLE**: Can vote and poke in the governance system.
-- **CLAIMER_ROLE**: Can claim bribes and fees.
-- **BRIBER_ROLE**: Can notify rewards and manage bribes.
-- **WITHDRAW_ERC20_ROLE / WITHDRAW_ERC721_ROLE**: Can withdraw ERC20 and ERC721 tokens.
+- **OPERATOR_ROLE**: Can vote and poke in the governance system, claim bribes and fees, notify rewards and manage bribes.
+- **WITHDRAWER_ROLE**: Can withdraw ERC20 and ERC721 tokens.
 - **SETTER_ROLE**: Can call setter functions.
 
 ## Implementations
