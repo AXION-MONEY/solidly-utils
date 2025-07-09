@@ -24,6 +24,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant SETTER_ROLE = keccak256("SETTER_ROLE");
     bytes32 public constant WITHDRAWER_ROLE = keccak256("WITHDRAWER_ROLE");
+    bytes32 public constant SWAPPER_ROLE = keccak256("SWAPPER_ROLE");
 
     event Voted(uint256 indexed tokenId, address[] poolVote, uint256[] weights);
     event Poked(uint256 indexed tokenId);
@@ -45,6 +46,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     error ArrayLengthsMismatch();
     error BribeTimesPerWeekLimitExceeded();
     error BribeAmountLimitExceeded(uint256 bribeAmount, uint256 limitAmount);
+    error SwapperRoleMissed(address);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -199,11 +201,12 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         emit ERC721Withdrawn(token, msig, tokenId);
     }
 
-    function swapperWithdraw(address token, uint256 amount) external onlyRole(OPERATOR_ROLE) {
+    function swapperWithdraw(address token, address to, uint256 amount) external onlyRole(OPERATOR_ROLE) {
         if (token == address(0)) revert ZeroAddress();
+        if (!hasRole(SWAPPER_ROLE, to)) revert SwapperRoleMissed(to);
 
-        IERC20(token).safeTransfer(msg.sender, amount);
-        emit SwapperWithdrawn(token, msg.sender, amount);
+        IERC20(token).safeTransfer(to, amount);
+        emit SwapperWithdrawn(token, to, amount);
     }
 
     function increaseAmount(uint256 tokenId, uint256 value) external virtual nonReentrant onlyRole(OPERATOR_ROLE) {
