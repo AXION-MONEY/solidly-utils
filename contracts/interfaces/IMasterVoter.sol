@@ -30,6 +30,13 @@ interface IMasterVoter {
     /// @param _tokenId Id of veNFT that you wish to claim fees for.
     function claimFees(address[] memory _fees, address[][] memory _tokens, uint256 _tokenId) external;
 
+    /// @notice Called by users to reset voting state. Required if you wish to make changes to
+    ///         veNFT state (e.g. merge, split, deposit into managed etc).
+    ///         Cannot reset in the same epoch that you voted in.
+    ///         Can vote or deposit into a managed NFT again after reset.
+    /// @param _tokenId Id of veNFT you are reseting.
+    function reset(uint256 _tokenId) external;
+
     /// @notice Address of Protocol Voting Escrow
     function _ve() external view returns (address);
 }
