@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.19;
+pragma solidity ^0.8.0;
 
 interface IMasterVoter {
     /// @notice Called by users to vote for pools. Votes distributed proportionally based on weights.
