@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -78,7 +78,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         _setupRole(WITHDRAWER_ROLE, admin);
     }
 
-    function checkIncreaseUnlockTime(uint256 tokenId, uint256 lockDuration) public view virtual returns (bool) {
+    function canIncreaseUnlockTime(uint256 tokenId, uint256 lockDuration) public view virtual returns (bool) {
         Ive.LockedBalance memory currentLocked = Ive(ve).locked(tokenId);
         uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks;
         return unlockTime > currentLocked.end;
@@ -89,7 +89,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     }
 
     function increaseUnlockTime(uint256 tokenId, uint256 lockDuration) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        if (!checkIncreaseUnlockTime(tokenId, lockDuration)) revert CantIncreaseUnlockTime();
+        if (!canIncreaseUnlockTime(tokenId, lockDuration)) revert CantIncreaseUnlockTime();
         _increaseUnlockTime(tokenId, lockDuration);
     }
 
@@ -98,13 +98,13 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
         address[] calldata poolVote,
         uint256[] calldata weights
     ) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        if (checkIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
+        if (canIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
         IMasterVoter(voter).vote(tokenId, poolVote, weights);
         emit Voted(tokenId, poolVote, weights);
     }
 
     function poke(uint256 tokenId) external nonReentrant onlyRole(OPERATOR_ROLE) {
-        if (checkIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
+        if (canIncreaseUnlockTime(tokenId, maxtime)) _increaseUnlockTime(tokenId, maxtime);
         IMasterVoter(voter).poke(tokenId);
         emit Poked(tokenId);
     }
@@ -214,6 +214,7 @@ contract MasterUtils is AccessControlEnumerableUpgradeable, ReentrancyGuardUpgra
     }
 
     function merge(uint256 from, uint256 to) external nonReentrant onlyRole(OPERATOR_ROLE) {
+        IMasterVoter(voter).reset(from);
         Ive(ve).merge(from, to);
     }
 

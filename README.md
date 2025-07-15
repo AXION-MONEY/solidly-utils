@@ -31,7 +31,7 @@ The veUtils system involves both a Master contract and Dex-specific implementati
 - **Voting Functions**:
   - `vote`: Cast a vote with a veNFT on specific pools.
   - `poke`: Update the vote of a given veNFT to keep it active.
-  - `checkIncreaseUnlockTime`: Check if the lock time of a veNFT can be increased.
+  - `canIncreaseUnlockTime`: Check if the lock time of a veNFT can be increased.
   - `increaseUnlockTime`: Increase lock time for a veNFT.
   - `increaseAmount`: Increase the locked token amount for a specific veNFT.
   - `merge`: Merge two veNFTs.

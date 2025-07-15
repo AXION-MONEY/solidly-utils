@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.19;
+pragma solidity ^0.8.20;
 
 import "./interfaces/IAerodromeVoter.sol";
 import "./interfaces/IveAERO.sol";
@@ -18,7 +18,7 @@ contract AerodromeUtils is MasterUtils {
         emit RewardsClaimed(gauges);
     }
 
-    function checkIncreaseUnlockTime(uint256 tokenId, uint256 lockDuration) public view override returns (bool) {
+    function canIncreaseUnlockTime(uint256 tokenId, uint256 lockDuration) public view override returns (bool) {
         IveAERO.LockedBalance memory currentLocked = IveAERO(ve).locked(tokenId);
         if (currentLocked.isPermanent) return false;
         uint256 unlockTime = ((block.timestamp + lockDuration) / 1 weeks) * 1 weeks;
